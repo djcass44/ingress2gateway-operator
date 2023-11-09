@@ -58,7 +58,7 @@ prepare index:
   dependencies: []
   needs:
     - build bundle
-    - build operator
+    - "build "
   image:
     name: quay.io/operator-framework/upstream-registry-builder
     entrypoint: [""]
