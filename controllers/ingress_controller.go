@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw"
+	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw/providers/ingressnginx"
+	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw/providers/kong"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -83,14 +85,22 @@ func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress) error {
 	logger := log.FromContext(ctx)
-	providerByName, err := r.constructProvider(&i2gw.ProviderConf{Client: r.Client}, i2gw.GetSupportedProviders())
+	logger.Info("checking providers")
+	providerByName, err := r.constructProvider(&i2gw.ProviderConf{Client: r.Client}, []string{ingressnginx.Name, kong.Name})
 	if err != nil {
 		return err
 	}
 
-	for _, provider := range providerByName {
+	for name, provider := range providerByName {
+		logger.Info("converting resources for provider", "provider", name)
 		gatewayResources, conversionErrors := provider.ToGatewayAPI(i2gw.InputResources{Ingresses: []netv1.Ingress{*ing}})
-		logger.Info("converted ingress to gateway", "resources", gatewayResources, "conversionErrors", conversionErrors)
+		for k, v := range gatewayResources.Gateways {
+			logger.Info("generated gateway", "name", k.String(), "resource", v)
+		}
+		for k, v := range gatewayResources.HTTPRoutes {
+			logger.Info("generated httproute", "name", k.String(), "resource", v)
+		}
+		logger.Info("converted ingress to gateway", "conversionErrors", conversionErrors)
 	}
 
 	return nil

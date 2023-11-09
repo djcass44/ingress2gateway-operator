@@ -1,0 +1,26 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name: operator
+build:
+  tagPolicy:
+    sha256: {}
+  artifacts:
+    - image: controller
+      ko:
+        fromImage: harbor.dcas.dev/gcr.io/distroless/static:nonroot
+        dependencies:
+          paths:
+            - controllers/
+            - main.go
+            - go.mod
+            - go.sum
+  local:
+    push: false
+manifests:
+  kustomize:
+    paths:
+      - config/minikube
+deploy:
+  kubectl: {}
+  kubeContext: minikube

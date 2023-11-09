@@ -1,0 +1,6 @@
+resources:
+  - ../default
+images:
+  - name: k8s.io/ingress2gateway-operator
+    newName: controller
+    newTag: latest
