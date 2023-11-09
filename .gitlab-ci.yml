@@ -1,0 +1,102 @@
+variables:
+  VERSION: "0.1.0"
+  KANIKO_TAGS: "$VERSION"
+  KO_TAGS: $VERSION
+
+stages:
+  - build
+  - bundle
+  - pre-deploy
+  - deploy
+
+"build ":
+  dependencies: []
+  needs: []
+  rules:
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - when: on_success
+
+prepare bundle:
+  stage: build
+  image: harbor.dcas.dev/registry.gitlab.com/av1o/base-images/go-ubuntu:1.21-rolling
+  script:
+    - |
+      mkdir -p .bin/
+      wget -q -O .bin/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/v1.31.0/operator-sdk_linux_amd64
+      chmod +x .bin/operator-sdk
+      export PATH="$PATH:$CI_PROJECT_DIR/.bin"
+      operator-sdk version
+    - make bundle
+  artifacts:
+    paths:
+      - bundle.Dockerfile
+      - bundle/
+  rules:
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - when: manual
+
+build bundle:
+  stage: build
+  extends: .kaniko
+  dependencies:
+    - prepare bundle
+  needs:
+    - prepare bundle
+  variables:
+    KANIKO_DOCKERFILE: bundle.Dockerfile
+  before_script:
+    - export CI_REGISTRY_IMAGE="$CI_REGISTRY_IMAGE/bundle"
+  rules:
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - when: on_success
+
+prepare index:
+  stage: pre-deploy
+  dependencies: []
+  needs:
+    - build bundle
+    - build operator
+  image:
+    name: quay.io/operator-framework/upstream-registry-builder
+    entrypoint: [""]
+  script:
+    - |
+      mkdir -p ~/.docker
+      echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+    - |
+      if [ -z ${FIRST_RUN+x} ]; then
+        opm index add --bundles "$CI_REGISTRY_IMAGE/bundle:$KANIKO_TAGS" --from-index "$CI_REGISTRY_IMAGE/index:main" --mode replaces --generate
+      else
+        opm index add --bundles "$CI_REGISTRY_IMAGE/bundle:$KANIKO_TAGS" --mode semver-skippatch --generate
+      fi
+  artifacts:
+    paths:
+      - database/index.db
+      - index.Dockerfile
+  rules:
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - when: on_success
+
+build index:
+  stage: deploy
+  extends: .kaniko
+  dependencies:
+    - prepare index
+  needs:
+    - prepare index
+  variables:
+    KANIKO_DOCKERFILE: index.Dockerfile
+  before_script:
+    - export CI_REGISTRY_IMAGE="$CI_REGISTRY_IMAGE/index"
+  rules:
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - when: on_success
+
+include:
+  - component: gitlab.dcas.dev/autodevops/components/go-build@main
+  - remote: https://gitlab.com/av1o/gitlab-ci-templates/-/raw/master/build/Kaniko.gitlab-ci.yml
