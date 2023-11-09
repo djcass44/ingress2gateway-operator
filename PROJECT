@@ -2,7 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: example.com
+domain: k8s.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -12,8 +12,8 @@ projectName: ingress2gateway-operator
 repo: github.com/djcass44/ingress2gateway-operator
 resources:
 - controller: true
-  domain: example.com
-  group: networking.k8s.io
+  domain: k8s.io
+  group: networking
   kind: Ingress
   version: v1
 version: "3"
