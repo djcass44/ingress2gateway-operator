@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "i2g-operator.fullname"}}-proxy-role
+  name: {{ include "i2g-operator.fullname" . }}-proxy-role
   labels:
     {{- include "i2g-operator.labels" . | nindent 4 }}
 rules:
