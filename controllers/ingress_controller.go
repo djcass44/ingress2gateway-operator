@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -80,5 +82,31 @@ func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress) error {
+	logger := log.FromContext(ctx)
+	providerByName, err := r.constructProvider(&i2gw.ProviderConf{Client: r.Client}, i2gw.GetSupportedProviders())
+	if err != nil {
+		return err
+	}
+
+	for _, provider := range providerByName {
+		gatewayResources, conversionErrors := provider.ToGatewayAPI(i2gw.InputResources{Ingresses: []netv1.Ingress{*ing}})
+		logger.Info("converted ingress to gateway", "resources", gatewayResources, "conversionErrors", conversionErrors)
+	}
+
 	return nil
+}
+
+func (*IngressReconciler) constructProvider(conf *i2gw.ProviderConf, providers []string) (map[i2gw.ProviderName]i2gw.Provider, error) {
+	providerByName := make(map[i2gw.ProviderName]i2gw.Provider, len(i2gw.ProviderConstructorByName))
+
+	for _, requestedProvider := range providers {
+		requestedProviderName := i2gw.ProviderName(requestedProvider)
+		newProviderFunc, ok := i2gw.ProviderConstructorByName[requestedProviderName]
+		if !ok {
+			return nil, fmt.Errorf("%s is not a supported provider", requestedProvider)
+		}
+		providerByName[requestedProviderName] = newProviderFunc(conf)
+	}
+
+	return providerByName, nil
 }
