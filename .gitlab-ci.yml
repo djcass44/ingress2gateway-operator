@@ -2,6 +2,7 @@ variables:
   VERSION: "0.1.0"
   KANIKO_TAGS: "$VERSION"
   KO_TAGS: $VERSION
+  BUILD_TAGS: $VERSION
 
 stages:
   - build
