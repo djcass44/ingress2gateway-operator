@@ -25,8 +25,11 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -68,7 +71,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.reconcileHttpRoute(ctx, ing); err != nil {
+	if err := r.reconcileGatewayResources(ctx, ing); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -83,7 +86,7 @@ func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress) error {
+func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *netv1.Ingress) error {
 	logger := log.FromContext(ctx)
 	logger.Info("checking providers")
 	providerByName, err := r.constructProvider(&i2gw.ProviderConf{Client: r.Client}, []string{ingressnginx.Name, kong.Name})
@@ -99,10 +102,39 @@ func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.I
 		}
 		for k, v := range gatewayResources.HTTPRoutes {
 			logger.Info("generated httproute", "name", k.String(), "resource", v)
+			if err := r.reconcileHttpRoute(ctx, ing, &v); err != nil {
+				return err
+			}
 		}
 		logger.Info("converted ingress to gateway", "conversionErrors", conversionErrors)
 	}
 
+	return nil
+}
+
+func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress, cr *gatewayv1.HTTPRoute) error {
+	logger := log.FromContext(ctx)
+
+	found := &gatewayv1.HTTPRoute{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}, found); err != nil {
+		if errors.IsNotFound(err) {
+			_ = controllerutil.SetControllerReference(ing, &cr.ObjectMeta, r.Scheme)
+			logger.Info("creating HTTPRoute")
+			if err := r.Create(ctx, cr); err != nil {
+				logger.Error(err, "failed to create HTTPRoute")
+				return err
+			}
+			return nil
+		}
+		return err
+	}
+	_ = controllerutil.SetControllerReference(ing, &cr.ObjectMeta, r.Scheme)
+	// reconcile by forcibly overwriting
+	// any changes
+	if !reflect.DeepEqual(cr.Spec, found.Spec) {
+		logger.Info("patching HTTPRoute")
+		return r.SafeUpdate(ctx, found, cr)
+	}
 	return nil
 }
 
@@ -119,4 +151,13 @@ func (*IngressReconciler) constructProvider(conf *i2gw.ProviderConf, providers [
 	}
 
 	return providerByName, nil
+}
+
+// SafeUpdate calls Update with hacks required to ensure that
+// the update is applied correctly.
+//
+// https://github.com/argoproj/argo-cd/issues/3657
+func (r *IngressReconciler) SafeUpdate(ctx context.Context, old, new client.Object, option ...client.UpdateOption) error {
+	new.SetResourceVersion(old.GetResourceVersion())
+	return r.Update(ctx, new, option...)
 }
