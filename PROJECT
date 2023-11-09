@@ -10,4 +10,10 @@ plugins:
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: ingress2gateway-operator
 repo: github.com/djcass44/ingress2gateway-operator
+resources:
+- controller: true
+  domain: example.com
+  group: networking.k8s.io
+  kind: Ingress
+  version: v1
 version: "3"
