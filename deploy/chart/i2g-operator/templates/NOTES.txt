@@ -1,1 +1,0 @@
-This operator exposes no user-facing interfaces.
