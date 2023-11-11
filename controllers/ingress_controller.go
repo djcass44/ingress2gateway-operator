@@ -22,24 +22,30 @@ import (
 	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw"
 	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw/providers/ingressnginx"
 	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw/providers/kong"
+	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	"slices"
 )
 
 // IngressReconciler reconciles an Ingress object
 type IngressReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme         *runtime.Scheme
+	Recorder       record.EventRecorder
+	WatchedClasses []string
 }
 
+//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses/finalizers,verbs=update
@@ -68,6 +74,12 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if ing.DeletionTimestamp != nil {
+		return ctrl.Result{}, nil
+	}
+
+	// check if the ingress is one we should be watching
+	if len(r.WatchedClasses) > 0 && ing.Spec.IngressClassName != nil && !slices.Contains(r.WatchedClasses, *ing.Spec.IngressClassName) {
+		logger.Info("skipping Ingress with non-matching class", "expected", r.WatchedClasses, "actual", *ing.Spec.IngressClassName)
 		return ctrl.Result{}, nil
 	}
 
@@ -124,6 +136,7 @@ func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.I
 				logger.Error(err, "failed to create HTTPRoute")
 				return err
 			}
+			r.Recorder.Eventf(ing, corev1.EventTypeNormal, ReasonCreated, "Created HTTPRoute %s", cr.Name)
 			return nil
 		}
 		return err
@@ -145,6 +158,7 @@ func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.I
 		requiresUpdate = true
 	}
 	if requiresUpdate {
+		r.Recorder.Eventf(ing, corev1.EventTypeWarning, ReasonRequiresUpdate, "HTTPRoute %s requires reconciliation", cr.Name)
 		return r.SafeUpdate(ctx, found, cr)
 	}
 	return nil
