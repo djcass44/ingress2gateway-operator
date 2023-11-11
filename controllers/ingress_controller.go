@@ -131,8 +131,20 @@ func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.I
 	_ = controllerutil.SetControllerReference(ing, &cr.ObjectMeta, r.Scheme)
 	// reconcile by forcibly overwriting
 	// any changes
+	var requiresUpdate bool
+	if !reflect.DeepEqual(cr.Annotations, found.Annotations) {
+		logger.Info("unexpected HTTPRoute annotations")
+		requiresUpdate = true
+	}
+	if !reflect.DeepEqual(cr.Labels, found.Labels) {
+		logger.Info("unexpected HTTPRoute labels")
+		requiresUpdate = true
+	}
 	if !reflect.DeepEqual(cr.Spec, found.Spec) {
-		logger.Info("patching HTTPRoute")
+		logger.Info("unexpected HTTPRoute spec")
+		requiresUpdate = true
+	}
+	if requiresUpdate {
 		return r.SafeUpdate(ctx, found, cr)
 	}
 	return nil
