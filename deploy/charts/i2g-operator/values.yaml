@@ -31,8 +31,8 @@ controllerManager:
         drop:
         - ALL
     image:
-      repository: controller
-      tag: latest
+      repository: registry.dcas.dev/k8s/ingress2gateway-operator
+      tag: 0.1.0
     resources:
       limits:
         cpu: 500m
@@ -43,6 +43,7 @@ controllerManager:
   replicas: 1
   serviceAccount:
     annotations: {}
+imagePullSecrets: []
 kubernetesClusterDomain: cluster.local
 metricsService:
   ports:

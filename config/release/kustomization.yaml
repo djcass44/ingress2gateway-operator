@@ -1,0 +1,6 @@
+resources:
+  - ../default
+images:
+  - name: controller
+    newName: registry.dcas.dev/k8s/ingress2gateway-operator
+    newTag: 0.1.0
