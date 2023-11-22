@@ -1,8 +1,19 @@
 # ingress2gateway-operator
-// TODO(user): Add simple overview of use/purpose
+
+Dynamically convert Ingress resources to Gateway API resources using the Operator pattern.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+This Operator is fundamentally an extension of the [`kubernetes-sigs/ingress2gateway`](https://github.com/kubernetes-sigs/ingress2gateway) project.
+While that project converts YAML files, this Operator dynamically translates Ingress resources into their equivalent Gateway API resources.
+
+## Installation
+
+Use the [Helm chart](./deploy/charts/i2g-operator) to install the Operator.
+By default, it will watch all namespaces and all IngressClass's.
+
+By adding the `--watched-classes=class-1,class-2` you can restrict the values of `.spec.ingressClassName` that the Operator will watch.
+Any Ingresses that do not have a matching value will be ignored.
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
