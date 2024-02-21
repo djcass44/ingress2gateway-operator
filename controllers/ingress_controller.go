@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	"slices"
 )
@@ -129,7 +128,7 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress, cr *gatewayv1beta1.HTTPRoute) error {
 	logger := log.FromContext(ctx)
 
-	found := &gatewayv1.HTTPRoute{}
+	found := &gatewayv1beta1.HTTPRoute{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}, found); err != nil {
 		if errors.IsNotFound(err) {
 			_ = controllerutil.SetControllerReference(ing, &cr.ObjectMeta, r.Scheme)
