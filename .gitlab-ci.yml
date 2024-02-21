@@ -1,5 +1,5 @@
 variables:
-  VERSION: "0.2.0"
+  VERSION: "0.2.1"
   KANIKO_TAGS: "$VERSION"
   KO_TAGS: $VERSION
   BUILD_TAGS: $VERSION

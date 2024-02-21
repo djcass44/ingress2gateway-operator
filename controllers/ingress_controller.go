@@ -106,6 +106,7 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 	if err != nil {
 		return err
 	}
+	ns := gatewayv1beta1.Namespace(ing.Annotations["networking.k8s.io/gateway-namespace"])
 
 	for name, provider := range providerByName {
 		logger.Info("converting resources for provider", "provider", name)
@@ -115,6 +116,13 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 		}
 		for k, v := range gatewayResources.HTTPRoutes {
 			logger.Info("generated httproute", "name", k.String(), "resource", v)
+			// update the parent ref namespace
+			for i := range v.Spec.ParentRefs {
+				if v.Spec.ParentRefs[i].Namespace == nil || *v.Spec.ParentRefs[i].Namespace == "" {
+					logger.Info("overwriting empty parentRef namespace", "namespace", ns)
+					v.Spec.ParentRefs[i].Namespace = &ns
+				}
+			}
 			if err := r.reconcileHttpRoute(ctx, ing, &v); err != nil {
 				return err
 			}
