@@ -4,8 +4,6 @@ go 1.21
 
 toolchain go1.21.0
 
-replace github.com/kubernetes-sigs/ingress2gateway v0.1.0 => github.com/mlavacca/ingress2gateway v0.0.0-20231107130716-394fff9278b3
-
 require (
 	github.com/kubernetes-sigs/ingress2gateway v0.1.0
 	github.com/onsi/ginkgo/v2 v2.11.0

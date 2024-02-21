@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	"slices"
 )
 
@@ -43,6 +44,7 @@ type IngressReconciler struct {
 	Scheme         *runtime.Scheme
 	Recorder       record.EventRecorder
 	WatchedClasses []string
+	BetaResources  bool
 }
 
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
@@ -94,7 +96,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&netv1.Ingress{}).
-		Owns(&gatewayv1.HTTPRoute{}).
+		Owns(&gatewayv1beta1.HTTPRoute{}).
 		Complete(r)
 }
 
@@ -124,7 +126,7 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 	return nil
 }
 
-func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress, cr *gatewayv1.HTTPRoute) error {
+func (r *IngressReconciler) reconcileHttpRoute(ctx context.Context, ing *netv1.Ingress, cr *gatewayv1beta1.HTTPRoute) error {
 	logger := log.FromContext(ctx)
 
 	found := &gatewayv1.HTTPRoute{}

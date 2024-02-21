@@ -31,7 +31,7 @@ controllerManager:
         drop:
         - ALL
     image:
-      repository: registry.dcas.dev/k8s/ingress2gateway-operator
+      repository: ghcr.io/djcass44/k8s/ingress2gateway-operator
       tag: 0.1.0
     resources:
       limits:
