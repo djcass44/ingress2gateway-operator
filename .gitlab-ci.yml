@@ -1,5 +1,5 @@
 variables:
-  VERSION: "0.2.1"
+  VERSION: "0.2.2"
   KANIKO_TAGS: "$VERSION"
   KO_TAGS: $VERSION
   BUILD_TAGS: $VERSION
@@ -20,7 +20,7 @@ stages:
 
 prepare bundle:
   stage: build
-  image: harbor.dcas.dev/registry.gitlab.com/av1o/base-images/go-ubuntu:1.21-rolling
+  image: harbor.dcas.dev/registry.gitlab.com/av1o/base-images/go-1.22-debian
   script:
     - |
       mkdir -p .bin/

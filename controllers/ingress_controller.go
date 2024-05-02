@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	"slices"
+	"strconv"
 )
 
 // IngressReconciler reconciles an Ingress object
@@ -106,7 +107,18 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 	if err != nil {
 		return err
 	}
-	ns := gatewayv1beta1.Namespace(ing.Annotations["networking.k8s.io/gateway-namespace"])
+	ns := gatewayv1beta1.Namespace(ing.Annotations[AnnotationGatewayNamespace])
+	sectionName := gatewayv1beta1.SectionName(ing.Annotations[AnnotationGatewaySection])
+	var port *gatewayv1beta1.PortNumber
+	if val := ing.Annotations[AnnotationGatewayPort]; val != "" {
+		portNumber, err := strconv.ParseInt(ing.Annotations[AnnotationGatewayPort], 10, 32)
+		if err != nil {
+			logger.Error(err, "failed to parse gateway port number", "val", val)
+			return err
+		}
+		p := gatewayv1beta1.PortNumber(portNumber)
+		port = &p
+	}
 
 	for name, provider := range providerByName {
 		logger.Info("converting resources for provider", "provider", name)
@@ -121,6 +133,16 @@ func (r *IngressReconciler) reconcileGatewayResources(ctx context.Context, ing *
 				if v.Spec.ParentRefs[i].Namespace == nil || *v.Spec.ParentRefs[i].Namespace == "" {
 					logger.Info("overwriting empty parentRef namespace", "namespace", ns)
 					v.Spec.ParentRefs[i].Namespace = &ns
+				}
+				if v.Spec.ParentRefs[i].SectionName == nil || *v.Spec.ParentRefs[i].SectionName == "" {
+					logger.Info("overwriting empty parentRef sectionName", "sectionName", sectionName)
+					v.Spec.ParentRefs[i].SectionName = &sectionName
+				}
+				if port != nil && *port > 0 {
+					if v.Spec.ParentRefs[i].Port == nil || *v.Spec.ParentRefs[i].Port == 0 {
+						logger.Info("overwriting empty parentRef port", "port", port)
+						v.Spec.ParentRefs[i].Port = port
+					}
 				}
 			}
 			if err := r.reconcileHttpRoute(ctx, ing, &v); err != nil {
